@@ -1,0 +1,952 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Queue Cure '26 — Smart Clinic Queue</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    /* ── TOKENS ── */
+    :root {
+      --bg: #0a0f1e;
+      --surface: #111827;
+      --surface2: #1a2332;
+      --border: #1f2d42;
+      --accent: #00d4aa;
+      --accent2: #3b82f6;
+      --danger: #ef4444;
+      --warn: #f59e0b;
+      --text: #f1f5f9;
+      --muted: #64748b;
+      --sub: #94a3b8;
+      --green: #22c55e;
+      --radius: 14px;
+      --radius-sm: 8px;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Inter', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    /* ── HEADER ── */
+    header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 16px 28px;
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+
+    .logo {
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 22px;
+      font-weight: 700;
+      color: var(--accent);
+      letter-spacing: -0.5px;
+    }
+    .logo span { color: var(--text); }
+
+    .live-badge {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      background: rgba(0,212,170,0.1);
+      border: 1px solid rgba(0,212,170,0.3);
+      color: var(--accent);
+      font-size: 12px;
+      font-weight: 600;
+      padding: 5px 12px;
+      border-radius: 20px;
+      letter-spacing: 0.5px;
+    }
+    .live-dot {
+      width: 7px; height: 7px;
+      background: var(--accent);
+      border-radius: 50%;
+      animation: pulse 1.5s infinite;
+    }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.4; transform: scale(0.8); }
+    }
+
+    /* ── TAB SWITCHER ── */
+    .tabs {
+      display: flex;
+      gap: 4px;
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      padding: 12px 28px 0;
+    }
+    .tab {
+      padding: 10px 22px;
+      border-radius: var(--radius-sm) var(--radius-sm) 0 0;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      border: none;
+      background: transparent;
+      color: var(--muted);
+      transition: all 0.2s;
+      border-bottom: 2px solid transparent;
+    }
+    .tab:hover { color: var(--text); }
+    .tab.active {
+      color: var(--accent);
+      border-bottom-color: var(--accent);
+      background: rgba(0,212,170,0.05);
+    }
+    .tab-icon { margin-right: 6px; }
+
+    /* ── SCREENS ── */
+    .screen { display: none; padding: 28px; max-width: 1100px; margin: 0 auto; }
+    .screen.active { display: block; }
+
+    /* ── GRID ── */
+    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+    .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+    @media (max-width: 768px) {
+      .grid-2, .grid-3 { grid-template-columns: 1fr; }
+      .screen { padding: 16px; }
+      header { padding: 12px 16px; }
+    }
+
+    /* ── CARDS ── */
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 22px;
+    }
+    .card-title {
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      margin-bottom: 16px;
+    }
+
+    /* ── STAT CARDS ── */
+    .stat-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .stat-label {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+    }
+    .stat-value {
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 36px;
+      font-weight: 700;
+      line-height: 1;
+    }
+    .stat-sub { font-size: 12px; color: var(--sub); }
+
+    /* ── CURRENT TOKEN HERO ── */
+    .current-token-hero {
+      background: linear-gradient(135deg, rgba(0,212,170,0.12) 0%, rgba(59,130,246,0.08) 100%);
+      border: 1px solid rgba(0,212,170,0.25);
+      border-radius: var(--radius);
+      padding: 32px;
+      text-align: center;
+      position: relative;
+      overflow: hidden;
+    }
+    .current-token-hero::before {
+      content: '';
+      position: absolute;
+      top: -40px; right: -40px;
+      width: 160px; height: 160px;
+      background: radial-gradient(circle, rgba(0,212,170,0.15) 0%, transparent 70%);
+      border-radius: 50%;
+    }
+    .token-label {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--accent);
+      text-transform: uppercase;
+      letter-spacing: 1.5px;
+      margin-bottom: 8px;
+    }
+    .token-number {
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 88px;
+      font-weight: 700;
+      color: var(--accent);
+      line-height: 1;
+      text-shadow: 0 0 40px rgba(0,212,170,0.4);
+    }
+    .token-name {
+      font-size: 18px;
+      font-weight: 500;
+      color: var(--text);
+      margin-top: 8px;
+    }
+
+    /* ── FORM ── */
+    .form-group { margin-bottom: 14px; }
+    .form-label {
+      display: block;
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--sub);
+      margin-bottom: 6px;
+      text-transform: uppercase;
+      letter-spacing: 0.6px;
+    }
+    .form-input {
+      width: 100%;
+      padding: 11px 14px;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      color: var(--text);
+      font-size: 14px;
+      font-family: 'Inter', sans-serif;
+      transition: border-color 0.2s;
+      outline: none;
+    }
+    .form-input:focus { border-color: var(--accent); }
+    .form-input::placeholder { color: var(--muted); }
+
+    /* ── BUTTONS ── */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      padding: 11px 20px;
+      border-radius: var(--radius-sm);
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      border: none;
+      transition: all 0.18s;
+      font-family: 'Inter', sans-serif;
+      white-space: nowrap;
+    }
+    .btn:active { transform: scale(0.97); }
+    .btn-primary {
+      background: var(--accent);
+      color: #0a0f1e;
+      width: 100%;
+    }
+    .btn-primary:hover { background: #00bfa0; }
+    .btn-call {
+      background: linear-gradient(135deg, var(--accent2), #6366f1);
+      color: white;
+      width: 100%;
+      padding: 14px;
+      font-size: 16px;
+      border-radius: var(--radius);
+    }
+    .btn-call:hover { opacity: 0.9; }
+    .btn-call:disabled { opacity: 0.4; cursor: not-allowed; }
+    .btn-danger {
+      background: rgba(239,68,68,0.1);
+      border: 1px solid rgba(239,68,68,0.3);
+      color: var(--danger);
+      padding: 6px 12px;
+      font-size: 12px;
+    }
+    .btn-danger:hover { background: rgba(239,68,68,0.2); }
+    .btn-outline {
+      background: transparent;
+      border: 1px solid var(--border);
+      color: var(--sub);
+    }
+    .btn-outline:hover { border-color: var(--accent); color: var(--accent); }
+
+    /* ── QUEUE LIST ── */
+    .queue-list { display: flex; flex-direction: column; gap: 8px; }
+    .queue-item {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      padding: 12px 16px;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      transition: all 0.2s;
+    }
+    .queue-item:hover { border-color: rgba(0,212,170,0.2); }
+    .queue-item.active-patient {
+      border-color: var(--accent);
+      background: rgba(0,212,170,0.05);
+    }
+    .queue-badge {
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 18px;
+      font-weight: 700;
+      color: var(--accent);
+      min-width: 44px;
+      text-align: center;
+      background: rgba(0,212,170,0.1);
+      padding: 4px 8px;
+      border-radius: 6px;
+    }
+    .queue-badge.done { color: var(--muted); background: rgba(100,116,139,0.1); }
+    .queue-badge.active { background: rgba(0,212,170,0.2); }
+    .queue-info { flex: 1; }
+    .queue-name { font-size: 14px; font-weight: 600; color: var(--text); }
+    .queue-meta { font-size: 12px; color: var(--muted); margin-top: 2px; }
+    .status-pill {
+      font-size: 11px;
+      font-weight: 600;
+      padding: 3px 10px;
+      border-radius: 20px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .status-waiting {
+      background: rgba(245,158,11,0.15);
+      color: var(--warn);
+    }
+    .status-in_progress {
+      background: rgba(0,212,170,0.15);
+      color: var(--accent);
+    }
+    .status-done {
+      background: rgba(100,116,139,0.15);
+      color: var(--muted);
+    }
+
+    /* ── PATIENT SCREEN ── */
+    .patient-hero {
+      background: linear-gradient(135deg, #0d1b2e 0%, #0a1628 100%);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 36px 28px;
+      text-align: center;
+      margin-bottom: 20px;
+    }
+    .your-token-label {
+      font-size: 13px;
+      color: var(--muted);
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      margin-bottom: 6px;
+    }
+    .your-token-number {
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 72px;
+      font-weight: 700;
+      color: var(--text);
+      line-height: 1;
+    }
+    .your-token-name { font-size: 16px; color: var(--sub); margin-top: 8px; }
+
+    .wait-meter {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 24px;
+      text-align: center;
+      margin-bottom: 20px;
+    }
+    .wait-time-big {
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 52px;
+      font-weight: 700;
+      color: var(--warn);
+      line-height: 1;
+    }
+    .wait-time-unit { font-size: 18px; color: var(--sub); }
+    .ahead-count {
+      font-size: 15px;
+      color: var(--sub);
+      margin-top: 8px;
+    }
+    .ahead-count strong { color: var(--text); }
+
+    .now-serving-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 22px;
+      display: flex;
+      align-items: center;
+      gap: 20px;
+      margin-bottom: 20px;
+    }
+    .now-serving-token {
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 48px;
+      font-weight: 700;
+      color: var(--accent);
+      min-width: 80px;
+      text-align: center;
+    }
+    .now-serving-info {}
+    .now-serving-label { font-size: 11px; color: var(--muted); font-weight: 600; text-transform: uppercase; letter-spacing: 0.8px; }
+    .now-serving-name { font-size: 20px; font-weight: 600; color: var(--text); margin-top: 4px; }
+
+    /* ── TOKEN LOOKUP ── */
+    .lookup-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 22px;
+      margin-bottom: 20px;
+    }
+    .lookup-row { display: flex; gap: 10px; }
+    .lookup-row .form-input { flex: 1; }
+
+    /* ── PROGRESS BAR ── */
+    .progress-wrap {
+      background: var(--surface2);
+      border-radius: 20px;
+      height: 6px;
+      overflow: hidden;
+      margin-top: 14px;
+    }
+    .progress-bar {
+      height: 100%;
+      background: linear-gradient(90deg, var(--accent), var(--accent2));
+      border-radius: 20px;
+      transition: width 0.6s ease;
+    }
+
+    /* ── SETTINGS ROW ── */
+    .settings-row {
+      display: flex;
+      gap: 10px;
+      align-items: flex-end;
+    }
+    .settings-row .form-group { margin-bottom: 0; flex: 1; }
+
+    /* ── TOAST ── */
+    .toast-container {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      z-index: 999;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .toast {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 12px 18px;
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--text);
+      min-width: 240px;
+      animation: slideIn 0.3s ease;
+      border-left: 3px solid var(--accent);
+    }
+    .toast.error { border-left-color: var(--danger); }
+    @keyframes slideIn {
+      from { opacity: 0; transform: translateX(20px); }
+      to { opacity: 1; transform: translateX(0); }
+    }
+
+    /* ── EMPTY STATE ── */
+    .empty {
+      text-align: center;
+      padding: 40px 20px;
+      color: var(--muted);
+    }
+    .empty-icon { font-size: 40px; margin-bottom: 12px; }
+    .empty-text { font-size: 14px; }
+
+    /* ── SECTION SPACING ── */
+    .section-gap { margin-bottom: 20px; }
+    .mb-12 { margin-bottom: 12px; }
+
+    /* ── DIVIDER ── */
+    .divider {
+      height: 1px;
+      background: var(--border);
+      margin: 20px 0;
+    }
+
+    /* ── SCROLLABLE LIST ── */
+    .scroll-list {
+      max-height: 420px;
+      overflow-y: auto;
+      scrollbar-width: thin;
+      scrollbar-color: var(--border) transparent;
+    }
+
+    /* ── SCREEN TITLE ── */
+    .screen-title {
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 22px;
+      font-weight: 700;
+      margin-bottom: 20px;
+      color: var(--text);
+    }
+    .screen-title span { color: var(--accent); }
+
+    /* Called animation */
+    @keyframes called {
+      0% { transform: scale(1); }
+      50% { transform: scale(1.04); box-shadow: 0 0 30px rgba(0,212,170,0.3); }
+      100% { transform: scale(1); }
+    }
+    .just-called { animation: called 0.6s ease; }
+  </style>
+</head>
+<body>
+
+<!-- HEADER -->
+<header>
+  <div class="logo">Queue<span>Cure</span> '26</div>
+  <div style="display:flex;gap:12px;align-items:center;">
+    <div class="live-badge"><div class="live-dot"></div>LIVE</div>
+  </div>
+</header>
+
+<!-- TABS -->
+<div class="tabs">
+  <button class="tab active" onclick="switchTab('receptionist')">
+    <span class="tab-icon">🩺</span>Receptionist
+  </button>
+  <button class="tab" onclick="switchTab('patient')">
+    <span class="tab-icon">🪑</span>Waiting Room
+  </button>
+</div>
+
+<!-- ═══════════════════════════════════════ -->
+<!-- SCREEN 1: RECEPTIONIST                -->
+<!-- ═══════════════════════════════════════ -->
+<div id="screen-receptionist" class="screen active">
+  <div class="screen-title">Receptionist <span>Dashboard</span></div>
+
+  <!-- Stats Row -->
+  <div class="grid-3 section-gap">
+    <div class="stat-card">
+      <div class="stat-label">Now Serving</div>
+      <div class="stat-value" id="r-current-token" style="color:var(--accent)">—</div>
+      <div class="stat-sub" id="r-current-name">No patient yet</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Waiting</div>
+      <div class="stat-value" id="r-waiting-count" style="color:var(--warn)">0</div>
+      <div class="stat-sub">patients in queue</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Avg Consult</div>
+      <div class="stat-value" id="r-avg-time" style="color:var(--accent2)">10</div>
+      <div class="stat-sub">minutes per patient</div>
+    </div>
+  </div>
+
+  <div class="grid-2 section-gap">
+    <!-- Add Patient -->
+    <div class="card">
+      <div class="card-title">➕ Add Patient</div>
+      <div class="form-group">
+        <label class="form-label">Patient Name *</label>
+        <input class="form-input" id="patient-name" type="text" placeholder="e.g. Priya Sharma" autocomplete="off" />
+      </div>
+      <div class="form-group">
+        <label class="form-label">Phone (optional)</label>
+        <input class="form-input" id="patient-phone" type="tel" placeholder="e.g. 98765 43210" autocomplete="off" />
+      </div>
+      <button class="btn btn-primary" onclick="addPatient()">
+        <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>
+        Register Patient
+      </button>
+    </div>
+
+    <!-- Call Next + Settings -->
+    <div style="display:flex;flex-direction:column;gap:16px;">
+      <div class="card">
+        <div class="card-title">📢 Queue Control</div>
+        <button class="btn btn-call" id="call-next-btn" onclick="callNext()">
+          <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+          Call Next Patient
+        </button>
+        <div style="margin-top:12px;text-align:center;font-size:12px;color:var(--muted)">
+          Marks current patient done and calls the next in line
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">⏱️ Consultation Time</div>
+        <div class="settings-row">
+          <div class="form-group">
+            <label class="form-label">Avg Minutes / Patient</label>
+            <input class="form-input" id="avg-minutes" type="number" min="1" max="60" placeholder="10" value="10" />
+          </div>
+          <button class="btn btn-outline" onclick="updateSettings()" style="margin-bottom:0;padding:11px 16px;">Set</button>
+        </div>
+      </div>
+
+      <div class="card" style="text-align:center;">
+        <div class="card-title">🔁 End of Day</div>
+        <button class="btn btn-danger" style="width:100%;padding:10px;" onclick="resetQueue()">Clear All & Reset Queue</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Full Queue List -->
+  <div class="card">
+    <div class="card-title">📋 Today's Queue</div>
+    <div class="scroll-list">
+      <div class="queue-list" id="receptionist-queue">
+        <div class="empty"><div class="empty-icon">🏥</div><div class="empty-text">No patients yet. Add the first patient above.</div></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════ -->
+<!-- SCREEN 2: PATIENT WAITING ROOM        -->
+<!-- ═══════════════════════════════════════ -->
+<div id="screen-patient" class="screen">
+  <div class="screen-title">Waiting Room <span>Status</span></div>
+
+  <!-- Now Serving -->
+  <div class="current-token-hero section-gap" id="now-serving-hero">
+    <div class="token-label">🔔 Now Serving</div>
+    <div class="token-number" id="p-current-token">—</div>
+    <div class="token-name" id="p-current-name">Waiting for first patient</div>
+  </div>
+
+  <!-- Token Lookup -->
+  <div class="lookup-card section-gap">
+    <div class="card-title">🔍 Check Your Wait Time</div>
+    <div class="lookup-row">
+      <input class="form-input" id="lookup-token" type="number" placeholder="Enter your token number" min="1" />
+      <button class="btn btn-primary" style="width:auto;padding:11px 20px;" onclick="lookupToken()">Check</button>
+    </div>
+    <div id="lookup-result" style="margin-top:14px;display:none;">
+      <div class="wait-meter" style="padding:20px;">
+        <div class="your-token-label">Your estimated wait</div>
+        <div class="wait-time-big" id="lookup-wait">0</div>
+        <div class="wait-time-unit">minutes</div>
+        <div class="ahead-count" id="lookup-ahead"></div>
+        <div class="progress-wrap" style="margin-top:12px;">
+          <div class="progress-bar" id="lookup-progress" style="width:0%"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Queue at a Glance -->
+  <div class="card">
+    <div class="card-title">🪑 Queue at a Glance</div>
+    <div id="patient-queue-list" class="queue-list scroll-list" style="max-height:360px;">
+      <div class="empty"><div class="empty-icon">😴</div><div class="empty-text">Queue is empty right now.</div></div>
+    </div>
+  </div>
+</div>
+
+<!-- TOAST CONTAINER -->
+<div class="toast-container" id="toast-container"></div>
+
+<!-- ═══════════════════════════════════════ -->
+<!-- JAVASCRIPT                            -->
+<!-- ═══════════════════════════════════════ -->
+<script>
+  // ─── CONFIG ───────────────────────────────────────────────────────
+  const SUPABASE_URL = 'https://gnbhwedcjbzwwfhtbfsf.supabase.co';
+  const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImduYmh3ZWRjamJ6d3dmaHRiZnNmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODIxMDI2NzMsImV4cCI6MjA5NzY3ODY3M30.0FjCj8X_l73RgnOlEqTTTOcFunXL4rJ5c597Jpi1aCU';
+
+  // !! REPLACE with your deployed Render URL after deployment !!
+  const API_URL = window.BACKEND_URL || 'http://localhost:3001';
+
+  const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+  // ─── STATE ────────────────────────────────────────────────────────
+  let state = {
+    patients: [],
+    settings: { current_token: null, current_patient_name: 'No patients yet', avg_consult_minutes: 10, next_token: 1 }
+  };
+
+  // ─── INIT ─────────────────────────────────────────────────────────
+  async function init() {
+    await loadQueue();
+    subscribeToChanges();
+  }
+
+  async function loadQueue() {
+    try {
+      const res = await fetch(`${API_URL}/queue`);
+      if (!res.ok) throw new Error('API error');
+      const data = await res.json();
+      state.patients = data.patients || [];
+      state.settings = data.settings || state.settings;
+      renderAll();
+    } catch (e) {
+      showToast('Could not connect to server. Check API URL.', 'error');
+      console.error(e);
+    }
+  }
+
+  // ─── SUPABASE REALTIME SUBSCRIPTION ──────────────────────────────
+  function subscribeToChanges() {
+    // Listen to patient table changes
+    sb.channel('patients-channel')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'patients' }, () => {
+        loadQueue();
+      })
+      .subscribe();
+
+    // Listen to settings changes
+    sb.channel('settings-channel')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'queue_settings' }, () => {
+        loadQueue();
+      })
+      .subscribe();
+  }
+
+  // ─── RENDER ───────────────────────────────────────────────────────
+  function renderAll() {
+    renderReceptionistStats();
+    renderReceptionistQueue();
+    renderPatientScreen();
+  }
+
+  function renderReceptionistStats() {
+    const s = state.settings;
+    const waiting = state.patients.filter(p => p.status === 'waiting').length;
+
+    document.getElementById('r-current-token').textContent = s.current_token || '—';
+    document.getElementById('r-current-name').textContent = s.current_patient_name || 'No patient yet';
+    document.getElementById('r-waiting-count').textContent = waiting;
+    document.getElementById('r-avg-time').textContent = s.avg_consult_minutes || 10;
+    document.getElementById('avg-minutes').value = s.avg_consult_minutes || 10;
+  }
+
+  function renderReceptionistQueue() {
+    const container = document.getElementById('receptionist-queue');
+    const all = [...state.patients].sort((a,b) => a.token_number - b.token_number);
+
+    if (!all.length) {
+      container.innerHTML = `<div class="empty"><div class="empty-icon">🏥</div><div class="empty-text">No patients yet.</div></div>`;
+      return;
+    }
+
+    container.innerHTML = all.map(p => {
+      const time = new Date(p.joined_at).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' });
+      return `
+        <div class="queue-item ${p.status === 'in_progress' ? 'active-patient' : ''}">
+          <div class="queue-badge ${p.status}">${p.token_number}</div>
+          <div class="queue-info">
+            <div class="queue-name">${escHtml(p.name)}</div>
+            <div class="queue-meta">${p.phone ? escHtml(p.phone) + ' · ' : ''}Joined ${time}</div>
+          </div>
+          <span class="status-pill status-${p.status}">${statusLabel(p.status)}</span>
+          ${p.status === 'waiting' ? `<button class="btn btn-danger" onclick="removePatient('${p.id}')">✕</button>` : ''}
+        </div>`;
+    }).join('');
+  }
+
+  function renderPatientScreen() {
+    const s = state.settings;
+    const waiting = state.patients.filter(p => p.status === 'waiting');
+
+    // Now serving
+    document.getElementById('p-current-token').textContent = s.current_token || '—';
+    document.getElementById('p-current-name').textContent = s.current_patient_name || 'Waiting for first patient';
+
+    // Queue list (only show waiting + in_progress)
+    const visible = state.patients
+      .filter(p => p.status !== 'done')
+      .sort((a,b) => a.token_number - b.token_number);
+
+    const listEl = document.getElementById('patient-queue-list');
+    if (!visible.length) {
+      listEl.innerHTML = `<div class="empty"><div class="empty-icon">😴</div><div class="empty-text">Queue is empty right now.</div></div>`;
+      return;
+    }
+
+    listEl.innerHTML = visible.map((p, i) => {
+      const wait = p.status === 'in_progress' ? 'Being seen now' : `~${i * s.avg_consult_minutes} min wait`;
+      return `
+        <div class="queue-item ${p.status === 'in_progress' ? 'active-patient' : ''}">
+          <div class="queue-badge ${p.status === 'in_progress' ? 'active' : ''}">${p.token_number}</div>
+          <div class="queue-info">
+            <div class="queue-name">${p.status === 'in_progress' ? escHtml(p.name) : 'Token ' + p.token_number}</div>
+            <div class="queue-meta">${wait}</div>
+          </div>
+          <span class="status-pill status-${p.status}">${statusLabel(p.status)}</span>
+        </div>`;
+    }).join('');
+  }
+
+  // ─── ACTIONS ──────────────────────────────────────────────────────
+  async function addPatient() {
+    const name = document.getElementById('patient-name').value.trim();
+    const phone = document.getElementById('patient-phone').value.trim();
+    if (!name) { showToast('Please enter patient name', 'error'); return; }
+
+    try {
+      const res = await fetch(`${API_URL}/patients`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, phone })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+      document.getElementById('patient-name').value = '';
+      document.getElementById('patient-phone').value = '';
+      showToast(`✅ Token #${data.token} issued to ${name}`);
+    } catch (e) {
+      showToast(e.message || 'Failed to add patient', 'error');
+    }
+  }
+
+  async function callNext() {
+    const btn = document.getElementById('call-next-btn');
+    btn.disabled = true;
+    btn.textContent = 'Calling...';
+    try {
+      const res = await fetch(`${API_URL}/call-next`, { method: 'POST' });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+      if (data.currentToken) {
+        showToast(`📢 Now calling Token #${data.currentToken} — ${data.patient.name}`);
+        document.getElementById('now-serving-hero').classList.add('just-called');
+        setTimeout(() => document.getElementById('now-serving-hero').classList.remove('just-called'), 700);
+      } else {
+        showToast('Queue is empty! No more patients.');
+      }
+    } catch (e) {
+      showToast(e.message || 'Failed', 'error');
+    } finally {
+      btn.disabled = false;
+      btn.innerHTML = `<svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M5 12h14M12 5l7 7-7 7"/></svg> Call Next Patient`;
+    }
+  }
+
+  async function updateSettings() {
+    const val = parseInt(document.getElementById('avg-minutes').value);
+    if (!val || val < 1) { showToast('Enter a valid time (min 1 minute)', 'error'); return; }
+    try {
+      const res = await fetch(`${API_URL}/settings`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ avg_consult_minutes: val })
+      });
+      if (!res.ok) throw new Error('Update failed');
+      showToast(`⏱️ Avg time updated to ${val} minutes`);
+    } catch (e) {
+      showToast(e.message, 'error');
+    }
+  }
+
+  async function removePatient(id) {
+    if (!confirm('Remove this patient from the queue?')) return;
+    try {
+      const res = await fetch(`${API_URL}/patients/${id}`, { method: 'DELETE' });
+      if (!res.ok) throw new Error('Remove failed');
+      showToast('Patient removed from queue');
+    } catch (e) {
+      showToast(e.message, 'error');
+    }
+  }
+
+  async function resetQueue() {
+    if (!confirm('Reset the entire queue? This clears all patients. Do this at end of day only.')) return;
+    try {
+      await fetch(`${API_URL}/reset`, { method: 'POST' });
+      showToast('🔁 Queue reset for a new day');
+    } catch (e) {
+      showToast('Reset failed', 'error');
+    }
+  }
+
+  function lookupToken() {
+    const token = parseInt(document.getElementById('lookup-token').value);
+    if (!token || isNaN(token)) { showToast('Enter a valid token number', 'error'); return; }
+
+    const waiting = state.patients
+      .filter(p => p.status === 'waiting')
+      .sort((a,b) => a.token_number - b.token_number);
+
+    const inProgress = state.patients.find(p => p.status === 'in_progress');
+    const myIndex = waiting.findIndex(p => p.token_number === token);
+    const resultEl = document.getElementById('lookup-result');
+
+    if (myIndex === -1 && (!inProgress || inProgress.token_number !== token)) {
+      showToast('Token not found in waiting queue', 'error');
+      resultEl.style.display = 'none';
+      return;
+    }
+
+    if (inProgress && inProgress.token_number === token) {
+      document.getElementById('lookup-wait').textContent = '0';
+      document.getElementById('lookup-ahead').innerHTML = '🎉 <strong>You are being seen now!</strong>';
+      document.getElementById('lookup-progress').style.width = '100%';
+      resultEl.style.display = 'block';
+      return;
+    }
+
+    const avg = state.settings.avg_consult_minutes || 10;
+    const ahead = myIndex; // patients ahead in line
+    const waitMins = (ahead + (inProgress ? 1 : 0)) * avg;
+    const totalWaiting = waiting.length;
+    const progress = totalWaiting > 0 ? Math.round(((totalWaiting - myIndex) / totalWaiting) * 100) : 0;
+
+    document.getElementById('lookup-wait').textContent = waitMins;
+    document.getElementById('lookup-ahead').innerHTML = `<strong>${ahead}</strong> patient${ahead !== 1 ? 's' : ''} ahead of you`;
+    document.getElementById('lookup-progress').style.width = `${progress}%`;
+    resultEl.style.display = 'block';
+  }
+
+  // ─── UTILS ───────────────────────────────────────────────────────
+  function switchTab(tab) {
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+    document.getElementById(`screen-${tab}`).classList.add('active');
+    event.target.classList.add('active');
+  }
+
+  function statusLabel(s) {
+    return { waiting: 'Waiting', in_progress: 'In Consult', done: 'Done' }[s] || s;
+  }
+
+  function escHtml(str) {
+    return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+
+  function showToast(msg, type = 'success') {
+    const tc = document.getElementById('toast-container');
+    const t = document.createElement('div');
+    t.className = `toast${type === 'error' ? ' error' : ''}`;
+    t.textContent = msg;
+    tc.appendChild(t);
+    setTimeout(() => t.remove(), 3500);
+  }
+
+  // Add patient on Enter
+  document.getElementById('patient-name').addEventListener('keydown', e => { if (e.key === 'Enter') addPatient(); });
+  document.getElementById('patient-phone').addEventListener('keydown', e => { if (e.key === 'Enter') addPatient(); });
+  document.getElementById('lookup-token').addEventListener('keydown', e => { if (e.key === 'Enter') lookupToken(); });
+
+  // Start app
+  init();
+</script>
+</body>
+</html>
